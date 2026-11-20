@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">شفرة الظل</string>
+    <string name="owner_name_ar">مجاهد مهند مقدادي</string>
+    <string name="owner_name_en">mojahed mohanad migdady</string>
+    <string name="credits_section_title">المطورون · Credits</string>
+    <string name="owner_role_ar">المالك والمطوّر الرسمي للمشروع</string>
+    <string name="owner_role_en">Official Creator &amp; Rights Holder</string>
+</resources>

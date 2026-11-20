@@ -1,0 +1,6 @@
+{
+  "name": "شفرة الظل",
+  "description": "لعبة جماعية استراتيجية وجاهية (أونلاين وأوفلاين) تجمع بين الخداع النفسي، الاستنتاج الاستخباراتي، والألغاز الذهنية.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

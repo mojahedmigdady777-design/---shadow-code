@@ -1,0 +1,237 @@
+{
+  "entities": {
+    "CloudContentPack": {
+      "title": "CloudContentPack",
+      "description": "Massive cloud-hosted banks for words, puzzles, and non-repeating spy reports",
+      "type": "object",
+      "properties": {
+        "packId": { "type": "string" },
+        "version": { "type": "integer" },
+        "entries": { "type": "array" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["packId", "version", "entries", "updatedAt"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated player profile, career summary, and AFK/deserter discipline state",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID" },
+        "displayName": { "type": "string", "description": "Player tactical callsign" },
+        "gamesPlayed": { "type": "integer", "description": "Total completed online matches" },
+        "winsAsOrg": { "type": "integer", "description": "Matches won as Organization member" },
+        "winsAsSpy": { "type": "integer", "description": "Matches won as Spy" },
+        "deserterCount": { "type": "integer", "description": "Number of mid-match abandonments" },
+        "afkPenaltyUntilEpochMs": { "type": "integer", "description": "Temporary matchmaking cooldown expiry timestamp" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "displayName", "gamesPlayed", "winsAsOrg", "winsAsSpy", "deserterCount", "afkPenaltyUntilEpochMs", "createdAt", "updatedAt"]
+    },
+    "OnlineRoom": {
+      "title": "OnlineRoom",
+      "description": "Multiplayer room state, visibility/capacity settings, timer, no-repeat pools, and shared gameplay events",
+      "type": "object",
+      "properties": {
+        "roomCode": { "type": "string" },
+        "roomName": { "type": "string" },
+        "publicRoom": { "type": "boolean" },
+        "maxPlayers": { "type": "integer" },
+        "roundNumber": { "type": "integer" },
+        "hostId": { "type": "string" },
+        "status": { "type": "string", "enum": ["WAITING", "PLAYING", "INVESTIGATION", "VOTING", "FINISHED"] },
+        "memberUids": { "type": "array" },
+        "memberNames": { "type": "array" },
+        "readyUids": { "type": "array" },
+        "twoSpiesEnabled": { "type": "boolean" },
+        "cipherType": { "type": "string", "enum": ["CAESAR_FORWARD", "CAESAR_BACKWARD", "REVERSE", "SWAP_PAIRS"] },
+        "cipherShift": { "type": "integer" },
+        "codeSlots": { "type": "array" },
+        "spyUids": { "type": "array" },
+        "usedWords": { "type": "array" },
+        "usedPuzzleIds": { "type": "array" },
+        "usedSpyReportIds": { "type": "array" },
+        "spyCharges": { "type": "integer" },
+        "spyRevealedCount": { "type": "integer" },
+        "spyInPuzzle": { "type": "boolean" },
+        "spyLastHackEpochMs": { "type": "integer" },
+        "spyLockoutUntilEpochMs": { "type": "integer" },
+        "spyFrozenUntilEpochMs": { "type": "integer" },
+        "jammerActive": { "type": "boolean" },
+        "delayedAlertAtEpochMs": { "type": "integer" },
+        "delayedAlertSlot": { "type": "integer" },
+        "roundStartEpochMs": { "type": "integer" },
+        "durationSeconds": { "type": "integer" },
+        "pausedAtEpochMs": { "type": "integer" },
+        "accumulatedPauseMs": { "type": "integer" },
+        "investigationTriggerUid": { "type": "string" },
+        "investigationEndsEpochMs": { "type": "integer" },
+        "auditId": { "type": "string" },
+        "auditQuestion": { "type": "string" },
+        "auditOptions": { "type": "array" },
+        "auditCorrectIndex": { "type": "integer" },
+        "auditEndsEpochMs": { "type": "integer" },
+        "auditWrongReported": { "type": "boolean" },
+        "auditSenderUid": { "type": "string" },
+        "auditSuccessReported": { "type": "boolean" },
+        "rareMilestone7Granted": { "type": "boolean" },
+        "rareMilestone3Granted": { "type": "boolean" },
+        "lastSystemMinuteTriggered": { "type": "integer" },
+        "winnerTeam": { "type": "string" },
+        "winReason": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["roomCode", "roomName", "publicRoom", "maxPlayers", "roundNumber", "hostId", "status", "memberUids", "memberNames", "readyUids", "twoSpiesEnabled", "cipherType", "cipherShift", "codeSlots", "spyUids", "usedWords", "usedPuzzleIds", "usedSpyReportIds", "spyCharges", "spyRevealedCount", "spyInPuzzle", "durationSeconds", "createdAt", "updatedAt"]
+    },
+    "PublicPlayerState": {
+      "title": "PublicPlayerState",
+      "description": "Public per-player state, AFK heartbeat, and voting status in an active room",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "roomId": { "type": "string" },
+        "hostId": { "type": "string" },
+        "memberUids": { "type": "array" },
+        "displayName": { "type": "string" },
+        "seatIndex": { "type": "integer" },
+        "alive": { "type": "boolean" },
+        "usedEmergency": { "type": "boolean" },
+        "usedSlotShield": { "type": "boolean" },
+        "hasVoted": { "type": "boolean" },
+        "voteTargetUid": { "type": "string" },
+        "auditAnsweredId": { "type": "string" },
+        "puzzlesSolved": { "type": "integer" },
+        "fastestPuzzleMs": { "type": "integer" },
+        "lastActiveEpochMs": { "type": "integer" },
+        "afkWarning": { "type": "boolean" },
+        "deserted": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "roomId", "hostId", "memberUids", "displayName", "seatIndex", "alive", "usedEmergency", "usedSlotShield", "hasVoted", "voteTargetUid", "auditAnsweredId", "puzzlesSolved", "fastestPuzzleMs", "lastActiveEpochMs", "afkWarning", "deserted", "createdAt", "updatedAt"]
+    },
+    "PrivatePlayerRole": {
+      "title": "PrivatePlayerRole",
+      "description": "Confidential role, assigned slots, 1-minute wiretap state, and rare cards for a player",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "roomId": { "type": "string" },
+        "hostId": { "type": "string" },
+        "role": { "type": "string", "enum": ["ORG", "SPY"] },
+        "assignedSlots": { "type": "array" },
+        "allySpyUids": { "type": "array" },
+        "allySpyNames": { "type": "array" },
+        "wiretapTargetUid": { "type": "string" },
+        "wiretapTargetName": { "type": "string" },
+        "wiretapExpiresEpochMs": { "type": "integer" },
+        "wiretapCycleStartedEpochMs": { "type": "integer" },
+        "wiretapMinute": { "type": "integer" },
+        "rareCards": { "type": "array" },
+        "decoyTrapArmed": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "roomId", "hostId", "role", "assignedSlots", "allySpyUids", "allySpyNames", "wiretapTargetUid", "wiretapTargetName", "wiretapExpiresEpochMs", "wiretapCycleStartedEpochMs", "wiretapMinute", "rareCards", "decoyTrapArmed", "createdAt", "updatedAt"]
+    },
+    "SpyNetwork": {
+      "title": "SpyNetwork",
+      "description": "Spy-only shared state for mutual wiretap decryption when two spies are active",
+      "type": "object",
+      "properties": {
+        "roomId": { "type": "string" },
+        "hostId": { "type": "string" },
+        "spyUids": { "type": "array" },
+        "spy1Uid": { "type": "string" },
+        "spy1TargetUid": { "type": "string" },
+        "spy1TargetName": { "type": "string" },
+        "spy1ExpiresEpochMs": { "type": "integer" },
+        "spy2Uid": { "type": "string" },
+        "spy2TargetUid": { "type": "string" },
+        "spy2TargetName": { "type": "string" },
+        "spy2ExpiresEpochMs": { "type": "integer" },
+        "blackChannelOpenedAtEpochMs": { "type": "integer" },
+        "blackChannelExpiresEpochMs": { "type": "integer" },
+        "blackChannelUsesCount": { "type": "integer" },
+        "blackChannelClosed": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["roomId", "hostId", "spyUids", "spy1Uid", "spy1TargetUid", "spy1TargetName", "spy1ExpiresEpochMs", "spy2Uid", "spy2TargetUid", "spy2TargetName", "spy2ExpiresEpochMs", "blackChannelOpenedAtEpochMs", "blackChannelExpiresEpochMs", "blackChannelUsesCount", "blackChannelClosed", "createdAt", "updatedAt"]
+    },
+    "RoomMessage": {
+      "title": "RoomMessage",
+      "description": "Dual-channel tactical or system message inside a room",
+      "type": "object",
+      "properties": {
+        "roomId": { "type": "string" },
+        "senderUid": { "type": "string" },
+        "senderDisplayName": { "type": "string" },
+        "spoofedByUid": { "type": "string" },
+        "channel": { "type": "string", "enum": ["PLAYER", "SYSTEM_ORG", "SYSTEM_SPY", "ALERT"] },
+        "targetUid": { "type": "string" },
+        "plainText": { "type": "string" },
+        "cipherText": { "type": "string" },
+        "decoyTrap": { "type": "boolean" },
+        "decoyTriggered": { "type": "boolean" },
+        "createdAtEpochMs": { "type": "integer" },
+        "memberUids": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["roomId", "senderUid", "senderDisplayName", "spoofedByUid", "channel", "targetUid", "plainText", "cipherText", "decoyTrap", "decoyTriggered", "createdAtEpochMs", "memberUids", "createdAt"]
+    },
+    "BattleLogEntry": {
+      "title": "BattleLogEntry",
+      "description": "Strictly post-game battle audit log entry (unreadable until room status is FINISHED)",
+      "type": "object",
+      "properties": {
+        "roomId": { "type": "string" },
+        "roundNumber": { "type": "integer" },
+        "actorUid": { "type": "string" },
+        "actorName": { "type": "string" },
+        "eventType": { "type": "string", "enum": ["ROUND_START", "MESSAGE", "WIRETAP", "PUZZLE_ATTACK", "ABILITY", "INVESTIGATION", "VOTE", "PENALTY", "ROUND_END"] },
+        "summaryAr": { "type": "string" },
+        "createdAtEpochMs": { "type": "integer" },
+        "memberUids": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["roomId", "roundNumber", "actorUid", "actorName", "eventType", "summaryAr", "createdAtEpochMs", "memberUids", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/gameContent/{packId}": {
+      "schema": { "$ref": "#/entities/CloudContentPack" },
+      "description": "Cloud-hosted massive word, puzzle, and spy report packs"
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Owner-only user profile and career/discipline statistics"
+    },
+    "/rooms/{roomId}": {
+      "schema": { "$ref": "#/entities/OnlineRoom" },
+      "description": "Multiplayer match rooms with public/private lobby support"
+    },
+    "/rooms/{roomId}/publicPlayers/{playerUid}": {
+      "schema": { "$ref": "#/entities/PublicPlayerState" },
+      "description": "Public player roster, activity tracking, and voting status"
+    },
+    "/rooms/{roomId}/privateRoles/{playerUid}": {
+      "schema": { "$ref": "#/entities/PrivatePlayerRole" },
+      "description": "Confidential role, ally spy info, 1-min wiretap target, and card hand readable only by owner"
+    },
+    "/rooms/{roomId}/spyNetwork/{docId}": {
+      "schema": { "$ref": "#/entities/SpyNetwork" },
+      "description": "Shared two-spy wiretap coordination state readable strictly by spies in the room"
+    },
+    "/rooms/{roomId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/RoomMessage" },
+      "description": "Dual-channel encrypted/decrypted tactical messages and system alerts"
+    },
+    "/rooms/{roomId}/battleLogs/{logId}": {
+      "schema": { "$ref": "#/entities/BattleLogEntry" },
+      "description": "Strictly post-round battle audit log readable only after FINISHED"
+    }
+  }
+}

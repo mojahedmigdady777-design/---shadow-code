@@ -1,0 +1,622 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidGameContentPack(data) {
+      return data.packId is string && data.packId.size() >= 1 && data.packId.size() <= 64 &&
+             data.version is int && data.version >= 1 &&
+             data.entries is list && data.entries.size() >= 1 && data.entries.size() <= 1500 &&
+             data.entries[0] is string &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 30 &&
+             data.gamesPlayed is int && data.gamesPlayed >= 0 &&
+             data.winsAsOrg is int && data.winsAsOrg >= 0 &&
+             data.winsAsSpy is int && data.winsAsSpy >= 0 &&
+             data.deserterCount is int && data.deserterCount >= 0 &&
+             data.afkPenaltyUntilEpochMs is int && data.afkPenaltyUntilEpochMs >= 0 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidRoomMeta(data) {
+      return data.roomCode is string && data.roomCode.size() == 6 &&
+             data.roomName is string && data.roomName.size() >= 1 && data.roomName.size() <= 40 &&
+             data.publicRoom is bool &&
+             data.maxPlayers is int && data.maxPlayers >= 4 && data.maxPlayers <= 8 &&
+             data.roundNumber is int && data.roundNumber >= 1 &&
+             data.hostId is string && data.hostId.size() >= 1 && data.hostId.size() <= 128 &&
+             data.status in ['WAITING', 'PLAYING', 'INVESTIGATION', 'VOTING', 'FINISHED'] &&
+             data.memberUids is list && data.memberUids.size() >= 1 && data.memberUids.size() <= 8 &&
+             data.memberNames is list && data.memberNames.size() >= 1 && data.memberNames.size() <= 8 &&
+             data.readyUids is list && data.readyUids.size() <= 8 &&
+             data.twoSpiesEnabled is bool &&
+             data.cipherType in ['CAESAR_FORWARD', 'CAESAR_BACKWARD', 'REVERSE', 'SWAP_PAIRS'] &&
+             data.cipherShift is int && data.cipherShift >= 1 && data.cipherShift <= 10 &&
+             data.codeSlots is list && data.codeSlots.size() == 4 &&
+             data.spyUids is list && data.spyUids.size() <= 2;
+    }
+
+    function isValidRoomGameplay(data) {
+      return data.usedWords is list && data.usedWords.size() <= 1000 &&
+             data.usedPuzzleIds is list && data.usedPuzzleIds.size() <= 500 &&
+             data.usedSpyReportIds is list && data.usedSpyReportIds.size() <= 500 &&
+             data.spyCharges is int && data.spyCharges >= 0 &&
+             data.spyRevealedCount is int && data.spyRevealedCount >= 0 && data.spyRevealedCount <= 4 &&
+             data.spyInPuzzle is bool &&
+             data.spyLastHackEpochMs is int && data.spyLastHackEpochMs >= 0 &&
+             data.spyLockoutUntilEpochMs is int && data.spyLockoutUntilEpochMs >= 0 &&
+             data.spyFrozenUntilEpochMs is int && data.spyFrozenUntilEpochMs >= 0 &&
+             data.jammerActive is bool &&
+             data.delayedAlertAtEpochMs is int && data.delayedAlertAtEpochMs >= 0 &&
+             data.delayedAlertSlot is int && data.delayedAlertSlot >= 0 && data.delayedAlertSlot <= 4 &&
+             data.roundStartEpochMs is int && data.roundStartEpochMs >= 0 &&
+             data.durationSeconds is int && data.durationSeconds >= 60 && data.durationSeconds <= 1800 &&
+             data.pausedAtEpochMs is int && data.pausedAtEpochMs >= 0 &&
+             data.accumulatedPauseMs is int && data.accumulatedPauseMs >= 0 &&
+             data.investigationTriggerUid is string && data.investigationTriggerUid.size() <= 128 &&
+             data.investigationEndsEpochMs is int && data.investigationEndsEpochMs >= 0 &&
+             data.auditId is string && data.auditId.size() <= 128 &&
+             data.auditQuestion is string && data.auditQuestion.size() <= 300 &&
+             data.auditOptions is list && data.auditOptions.size() <= 4 &&
+             data.auditCorrectIndex is int && data.auditCorrectIndex >= -1 && data.auditCorrectIndex <= 3 &&
+             data.auditEndsEpochMs is int && data.auditEndsEpochMs >= 0 &&
+             data.auditWrongReported is bool &&
+             data.auditSenderUid is string && data.auditSenderUid.size() <= 128 &&
+             data.auditSuccessReported is bool &&
+             data.rareMilestone7Granted is bool &&
+             data.rareMilestone3Granted is bool &&
+             data.lastSystemMinuteTriggered is int && data.lastSystemMinuteTriggered >= 0 &&
+             data.winnerTeam in ['', 'ORG', 'SPY'] &&
+             data.winReason is string && data.winReason.size() <= 64 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidRoom(data) {
+      return isValidRoomMeta(data) && isValidRoomGameplay(data);
+    }
+
+    function isValidPublicPlayer(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.roomId is string && data.roomId.size() >= 1 && data.roomId.size() <= 128 &&
+             data.hostId is string && data.hostId.size() >= 1 && data.hostId.size() <= 128 &&
+             data.memberUids is list && data.memberUids.size() >= 1 && data.memberUids.size() <= 8 &&
+             (data.memberUids.size() == 0 || data.memberUids[0] is string) &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 30 &&
+             data.seatIndex is int && data.seatIndex >= 0 && data.seatIndex <= 7 &&
+             data.alive is bool &&
+             data.usedEmergency is bool &&
+             data.usedSlotShield is bool &&
+             data.hasVoted is bool &&
+             data.voteTargetUid is string && data.voteTargetUid.size() <= 128 &&
+             data.auditAnsweredId is string && data.auditAnsweredId.size() <= 128 &&
+             data.puzzlesSolved is int && data.puzzlesSolved >= 0 &&
+             data.fastestPuzzleMs is int && data.fastestPuzzleMs >= 0 &&
+             data.lastActiveEpochMs is int && data.lastActiveEpochMs >= 0 &&
+             data.afkWarning is bool &&
+             data.deserted is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidPrivateRole(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.roomId is string && data.roomId.size() >= 1 && data.roomId.size() <= 128 &&
+             data.hostId is string && data.hostId.size() >= 1 && data.hostId.size() <= 128 &&
+             data.role in ['ORG', 'SPY'] &&
+             data.assignedSlots is list && data.assignedSlots.size() <= 4 &&
+             (data.assignedSlots.size() == 0 || data.assignedSlots[0] is int) &&
+             data.allySpyUids is list && data.allySpyUids.size() <= 2 &&
+             (data.allySpyUids.size() == 0 || data.allySpyUids[0] is string) &&
+             data.allySpyNames is list && data.allySpyNames.size() <= 2 &&
+             (data.allySpyNames.size() == 0 || data.allySpyNames[0] is string) &&
+             data.wiretapTargetUid is string && data.wiretapTargetUid.size() <= 128 &&
+             data.wiretapTargetName is string && data.wiretapTargetName.size() <= 40 &&
+             data.wiretapExpiresEpochMs is int && data.wiretapExpiresEpochMs >= 0 &&
+             data.wiretapCycleStartedEpochMs is int && data.wiretapCycleStartedEpochMs >= 0 &&
+             data.wiretapMinute is int && data.wiretapMinute >= 0 &&
+             data.rareCards is list && data.rareCards.size() <= 6 &&
+             (data.rareCards.size() == 0 || data.rareCards[0] is string) &&
+             data.decoyTrapArmed is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidSpyNetwork(data) {
+      return data.roomId is string && data.roomId.size() >= 1 && data.roomId.size() <= 128 &&
+             data.hostId is string && data.hostId.size() >= 1 && data.hostId.size() <= 128 &&
+             data.spyUids is list && data.spyUids.size() >= 1 && data.spyUids.size() <= 2 &&
+             (data.spyUids.size() == 0 || data.spyUids[0] is string) &&
+             data.spy1Uid is string && data.spy1Uid.size() <= 128 &&
+             data.spy1TargetUid is string && data.spy1TargetUid.size() <= 128 &&
+             data.spy1TargetName is string && data.spy1TargetName.size() <= 40 &&
+             data.spy1ExpiresEpochMs is int && data.spy1ExpiresEpochMs >= 0 &&
+             data.spy2Uid is string && data.spy2Uid.size() <= 128 &&
+             data.spy2TargetUid is string && data.spy2TargetUid.size() <= 128 &&
+             data.spy2TargetName is string && data.spy2TargetName.size() <= 40 &&
+             data.spy2ExpiresEpochMs is int && data.spy2ExpiresEpochMs >= 0 &&
+             data.blackChannelOpenedAtEpochMs is int && data.blackChannelOpenedAtEpochMs >= 0 &&
+             data.blackChannelExpiresEpochMs is int && data.blackChannelExpiresEpochMs >= 0 &&
+             data.blackChannelUsesCount is int && data.blackChannelUsesCount >= 0 && data.blackChannelUsesCount <= 2 &&
+             data.blackChannelClosed is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidRoomMessage(data) {
+      return data.roomId is string && data.roomId.size() >= 1 && data.roomId.size() <= 128 &&
+             data.senderUid is string && data.senderUid.size() >= 1 && data.senderUid.size() <= 128 &&
+             data.senderDisplayName is string && data.senderDisplayName.size() >= 1 && data.senderDisplayName.size() <= 40 &&
+             data.spoofedByUid is string && data.spoofedByUid.size() <= 128 &&
+             data.channel in ['PLAYER', 'SYSTEM_ORG', 'SYSTEM_SPY', 'ALERT'] &&
+             data.targetUid is string && data.targetUid.size() <= 128 &&
+             data.plainText is string && data.plainText.size() >= 1 && data.plainText.size() <= 500 &&
+             data.cipherText is string && data.cipherText.size() >= 1 && data.cipherText.size() <= 500 &&
+             data.decoyTrap is bool &&
+             data.decoyTriggered is bool &&
+             data.createdAtEpochMs is int && data.createdAtEpochMs >= 0 &&
+             data.memberUids is list && data.memberUids.size() >= 1 && data.memberUids.size() <= 8 &&
+             (data.memberUids.size() == 0 || data.memberUids[0] is string) &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidBattleLog(data) {
+      return data.roomId is string && data.roomId.size() >= 1 && data.roomId.size() <= 128 &&
+             data.roundNumber is int && data.roundNumber >= 1 &&
+             data.actorUid is string && data.actorUid.size() >= 1 && data.actorUid.size() <= 128 &&
+             data.actorName is string && data.actorName.size() >= 1 && data.actorName.size() <= 40 &&
+             data.eventType in ['ROUND_START', 'MESSAGE', 'WIRETAP', 'PUZZLE_ATTACK', 'ABILITY', 'INVESTIGATION', 'VOTE', 'PENALTY', 'ROUND_END'] &&
+             data.summaryAr is string && data.summaryAr.size() >= 1 && data.summaryAr.size() <= 400 &&
+             data.createdAtEpochMs is int && data.createdAtEpochMs >= 0 &&
+             data.memberUids is list && data.memberUids.size() >= 1 && data.memberUids.size() <= 8 &&
+             (data.memberUids.size() == 0 || data.memberUids[0] is string) &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    // 0. Massive Cloud Content Packs (Words, Puzzles, Non-Repeating Spy Reports)
+    match /gameContent/{packId} {
+      allow get, list: if isSignedIn();
+      allow create, update: if isSignedIn() &&
+                               isValidId(packId) &&
+                               incoming().packId == packId &&
+                               incoming().keys().hasAll(['packId', 'version', 'entries', 'updatedAt']) &&
+                               incoming().keys().hasOnly(['packId', 'version', 'entries', 'updatedAt']) &&
+                               isValidGameContentPack(incoming());
+      allow delete: if false;
+    }
+
+    // 1. User Profiles & Discipline Records
+    match /users/{userId} {
+      allow get, list: if isSignedIn() && request.auth.uid == userId;
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'gamesPlayed', 'winsAsOrg', 'winsAsSpy', 'deserterCount', 'afkPenaltyUntilEpochMs', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'gamesPlayed', 'winsAsOrg', 'winsAsSpy', 'deserterCount', 'afkPenaltyUntilEpochMs', 'createdAt', 'updatedAt']) &&
+                       isValidUserProfile(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'gamesPlayed', 'winsAsOrg', 'winsAsSpy', 'deserterCount', 'afkPenaltyUntilEpochMs', 'updatedAt']);
+
+      allow delete: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+    }
+
+    // 2. Multiplayer Game Rooms (Public/Private Room System + Rematch)
+    match /rooms/{roomId} {
+      allow get: if isSignedIn() && isValidId(roomId) &&
+                    (request.auth.uid in existing().memberUids || existing().status == 'WAITING');
+
+      allow list: if isSignedIn() &&
+                     (request.auth.uid in existing().memberUids || existing().status == 'WAITING');
+
+      allow create: if isSignedIn() &&
+                       isValidId(roomId) &&
+                       incoming().hostId == request.auth.uid &&
+                       request.auth.uid in incoming().memberUids &&
+                       incoming().status == 'WAITING' &&
+                       incoming().keys().hasAll([
+                         'roomCode', 'roomName', 'publicRoom', 'maxPlayers', 'roundNumber',
+                         'hostId', 'status', 'memberUids', 'memberNames', 'readyUids',
+                         'twoSpiesEnabled', 'cipherType', 'cipherShift', 'codeSlots', 'spyUids',
+                         'usedWords', 'usedPuzzleIds', 'usedSpyReportIds',
+                         'spyCharges', 'spyRevealedCount', 'spyInPuzzle', 'spyLastHackEpochMs',
+                         'spyLockoutUntilEpochMs', 'spyFrozenUntilEpochMs', 'jammerActive',
+                         'delayedAlertAtEpochMs', 'delayedAlertSlot', 'roundStartEpochMs',
+                         'durationSeconds', 'pausedAtEpochMs', 'accumulatedPauseMs',
+                         'investigationTriggerUid', 'investigationEndsEpochMs',
+                         'auditId', 'auditQuestion', 'auditOptions', 'auditCorrectIndex',
+                         'auditEndsEpochMs', 'auditWrongReported', 'auditSenderUid', 'auditSuccessReported',
+                         'rareMilestone7Granted',
+                         'rareMilestone3Granted', 'lastSystemMinuteTriggered',
+                         'winnerTeam', 'winReason', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'roomCode', 'roomName', 'publicRoom', 'maxPlayers', 'roundNumber',
+                         'hostId', 'status', 'memberUids', 'memberNames', 'readyUids',
+                         'twoSpiesEnabled', 'cipherType', 'cipherShift', 'codeSlots', 'spyUids',
+                         'usedWords', 'usedPuzzleIds', 'usedSpyReportIds',
+                         'spyCharges', 'spyRevealedCount', 'spyInPuzzle', 'spyLastHackEpochMs',
+                         'spyLockoutUntilEpochMs', 'spyFrozenUntilEpochMs', 'jammerActive',
+                         'delayedAlertAtEpochMs', 'delayedAlertSlot', 'roundStartEpochMs',
+                         'durationSeconds', 'pausedAtEpochMs', 'accumulatedPauseMs',
+                         'investigationTriggerUid', 'investigationEndsEpochMs',
+                         'auditId', 'auditQuestion', 'auditOptions', 'auditCorrectIndex',
+                         'auditEndsEpochMs', 'auditWrongReported', 'auditSenderUid', 'auditSuccessReported',
+                         'rareMilestone7Granted',
+                         'rareMilestone3Granted', 'lastSystemMinuteTriggered',
+                         'winnerTeam', 'winReason', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidRoom(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(roomId) &&
+                       isValidRoom(incoming()) &&
+                       incoming().hostId == existing().hostId &&
+                       incoming().roomCode == existing().roomCode &&
+                       incoming().createdAt == existing().createdAt && (
+                         // Action 1: Join, leave, or toggle ready in waiting room
+                         (existing().status == 'WAITING' &&
+                          incoming().status == 'WAITING' &&
+                          (request.auth.uid in incoming().memberUids || request.auth.uid in existing().memberUids) &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['memberUids', 'memberNames', 'readyUids', 'updatedAt'])) ||
+                         // Action 2: Host configures, kicks, or starts waiting room
+                         (existing().status == 'WAITING' &&
+                          request.auth.uid == existing().hostId &&
+                          incoming().diff(existing()).affectedKeys().hasOnly([
+                            'roomName', 'publicRoom', 'maxPlayers', 'memberUids', 'memberNames',
+                            'readyUids', 'twoSpiesEnabled', 'status', 'cipherType', 'cipherShift',
+                            'codeSlots', 'spyUids', 'roundStartEpochMs', 'durationSeconds', 'updatedAt'
+                          ])) ||
+                         // Action 3: Active gameplay updates by room members (when not FINISHED)
+                         (existing().status != 'WAITING' &&
+                          existing().status != 'FINISHED' &&
+                          request.auth.uid in existing().memberUids &&
+                          incoming().memberUids == existing().memberUids &&
+                          incoming().diff(existing()).affectedKeys().hasOnly([
+                            'status', 'codeSlots', 'usedWords', 'usedPuzzleIds', 'usedSpyReportIds',
+                            'spyCharges', 'spyRevealedCount',
+                            'spyInPuzzle', 'spyLastHackEpochMs', 'spyLockoutUntilEpochMs',
+                            'spyFrozenUntilEpochMs', 'jammerActive', 'delayedAlertAtEpochMs',
+                            'delayedAlertSlot', 'pausedAtEpochMs', 'accumulatedPauseMs',
+                            'investigationTriggerUid', 'investigationEndsEpochMs',
+                            'auditId', 'auditQuestion', 'auditOptions', 'auditCorrectIndex',
+                            'auditEndsEpochMs', 'auditWrongReported', 'auditSenderUid', 'auditSuccessReported',
+                            'rareMilestone7Granted',
+                            'rareMilestone3Granted', 'lastSystemMinuteTriggered',
+                            'winnerTeam', 'winReason', 'updatedAt'
+                          ])) ||
+                         // Action 4: Host triggers a Rematch (new round) from FINISHED -> WAITING preserving no-repeat sets
+                         (existing().status == 'FINISHED' &&
+                          incoming().status == 'WAITING' &&
+                          request.auth.uid == existing().hostId &&
+                          incoming().roundNumber == existing().roundNumber + 1 &&
+                          incoming().usedWords.size() >= existing().usedWords.size() &&
+                          incoming().usedPuzzleIds.size() >= existing().usedPuzzleIds.size() &&
+                          incoming().usedSpyReportIds.size() >= existing().usedSpyReportIds.size() &&
+                          incoming().diff(existing()).affectedKeys().hasOnly([
+                            'status', 'roundNumber', 'spyUids', 'spyCharges', 'spyRevealedCount',
+                            'spyInPuzzle', 'spyLastHackEpochMs', 'spyLockoutUntilEpochMs',
+                            'spyFrozenUntilEpochMs', 'jammerActive', 'delayedAlertAtEpochMs',
+                            'delayedAlertSlot', 'roundStartEpochMs', 'pausedAtEpochMs',
+                            'accumulatedPauseMs', 'investigationTriggerUid', 'investigationEndsEpochMs',
+                            'auditId', 'auditQuestion', 'auditOptions', 'auditCorrectIndex',
+                            'auditEndsEpochMs', 'auditWrongReported', 'auditSenderUid', 'auditSuccessReported',
+                            'rareMilestone7Granted',
+                            'rareMilestone3Granted', 'lastSystemMinuteTriggered',
+                            'winnerTeam', 'winReason', 'readyUids', 'updatedAt'
+                          ]))
+                       );
+
+      allow delete: if isSignedIn() && isValidId(roomId) && request.auth.uid == existing().hostId;
+
+      // 3. Public Player States inside a Room
+      match /publicPlayers/{playerUid} {
+        allow get, list: if isSignedIn() && request.auth.uid in existing().memberUids;
+
+        allow create: if isSignedIn() &&
+                         isValidId(roomId) &&
+                         isValidId(playerUid) &&
+                         incoming().roomId == roomId &&
+                         incoming().userId == playerUid &&
+                         incoming().hostId == request.auth.uid &&
+                         playerUid in incoming().memberUids &&
+                         incoming().keys().hasAll([
+                           'userId', 'roomId', 'hostId', 'memberUids', 'displayName',
+                           'seatIndex', 'alive', 'usedEmergency', 'usedSlotShield',
+                           'hasVoted', 'voteTargetUid', 'auditAnsweredId',
+                           'puzzlesSolved', 'fastestPuzzleMs', 'lastActiveEpochMs',
+                           'afkWarning', 'deserted', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'roomId', 'hostId', 'memberUids', 'displayName',
+                           'seatIndex', 'alive', 'usedEmergency', 'usedSlotShield',
+                           'hasVoted', 'voteTargetUid', 'auditAnsweredId',
+                           'puzzlesSolved', 'fastestPuzzleMs', 'lastActiveEpochMs',
+                           'afkWarning', 'deserted', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidPublicPlayer(incoming()) &&
+                         exists(/databases/$(database)/documents/rooms/$(roomId)) &&
+                         get(/databases/$(database)/documents/rooms/$(roomId)).data.hostId == request.auth.uid;
+
+        allow update: if isSignedIn() &&
+                         isValidId(roomId) &&
+                         isValidId(playerUid) &&
+                         isValidPublicPlayer(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().roomId == existing().roomId &&
+                         incoming().hostId == existing().hostId &&
+                         incoming().createdAt == existing().createdAt && (
+                           // Host resets player state for a new Rematch round
+                           (request.auth.uid == existing().hostId &&
+                            incoming().diff(existing()).affectedKeys().hasOnly([
+                              'memberUids', 'displayName', 'seatIndex', 'alive',
+                              'usedEmergency', 'usedSlotShield', 'hasVoted', 'voteTargetUid',
+                              'auditAnsweredId', 'puzzlesSolved', 'fastestPuzzleMs',
+                              'lastActiveEpochMs', 'afkWarning', 'deserted', 'updatedAt'
+                            ])) ||
+                           // Player updates their own public actions & heartbeat
+                           (request.auth.uid in existing().memberUids &&
+                            incoming().memberUids == existing().memberUids &&
+                            request.auth.uid == playerUid &&
+                            incoming().diff(existing()).affectedKeys().hasOnly([
+                              'alive', 'usedEmergency', 'usedSlotShield', 'hasVoted', 'voteTargetUid',
+                              'auditAnsweredId', 'puzzlesSolved', 'fastestPuzzleMs',
+                              'lastActiveEpochMs', 'afkWarning', 'deserted', 'updatedAt'
+                            ])) ||
+                           // Vote tallying / AFK resolution / elimination / vote reset by a room member
+                           (request.auth.uid in existing().memberUids &&
+                            incoming().memberUids == existing().memberUids &&
+                            incoming().diff(existing()).affectedKeys().hasOnly([
+                              'alive', 'hasVoted', 'voteTargetUid', 'afkWarning', 'updatedAt'
+                            ]))
+                         );
+
+        allow delete: if isSignedIn() && isValidId(roomId) && isValidId(playerUid) &&
+                         request.auth.uid == existing().hostId;
+      }
+
+      // 4. Confidential Player Roles & 1-Min Wiretap (Strictly Owner-Readable Only)
+      match /privateRoles/{playerUid} {
+        allow get, list: if isSignedIn() && request.auth.uid == playerUid;
+
+        allow create: if isSignedIn() &&
+                         isValidId(roomId) &&
+                         isValidId(playerUid) &&
+                         incoming().roomId == roomId &&
+                         incoming().userId == playerUid &&
+                         incoming().hostId == request.auth.uid &&
+                         incoming().keys().hasAll([
+                           'userId', 'roomId', 'hostId', 'role', 'assignedSlots',
+                           'allySpyUids', 'allySpyNames',
+                           'wiretapTargetUid', 'wiretapTargetName', 'wiretapExpiresEpochMs',
+                           'wiretapCycleStartedEpochMs', 'wiretapMinute', 'rareCards',
+                           'decoyTrapArmed', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'roomId', 'hostId', 'role', 'assignedSlots',
+                           'allySpyUids', 'allySpyNames',
+                           'wiretapTargetUid', 'wiretapTargetName', 'wiretapExpiresEpochMs',
+                           'wiretapCycleStartedEpochMs', 'wiretapMinute', 'rareCards',
+                           'decoyTrapArmed', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidPrivateRole(incoming()) &&
+                         exists(/databases/$(database)/documents/rooms/$(roomId)) &&
+                         get(/databases/$(database)/documents/rooms/$(roomId)).data.hostId == request.auth.uid;
+
+        allow update: if isSignedIn() &&
+                         isValidId(roomId) &&
+                         isValidId(playerUid) &&
+                         isValidPrivateRole(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().roomId == existing().roomId &&
+                         incoming().hostId == existing().hostId &&
+                         incoming().createdAt == existing().createdAt && (
+                           // Owner updates wiretap target/timer or card hand
+                           (request.auth.uid == playerUid &&
+                            incoming().role == existing().role &&
+                            incoming().assignedSlots == existing().assignedSlots &&
+                            incoming().allySpyUids == existing().allySpyUids &&
+                            incoming().allySpyNames == existing().allySpyNames &&
+                            incoming().diff(existing()).affectedKeys().hasOnly([
+                              'wiretapTargetUid', 'wiretapTargetName', 'wiretapExpiresEpochMs',
+                              'wiretapCycleStartedEpochMs', 'wiretapMinute', 'rareCards',
+                              'decoyTrapArmed', 'updatedAt'
+                            ])) ||
+                           // Host resets role & hand for a new Rematch round
+                           (request.auth.uid == existing().hostId &&
+                            incoming().diff(existing()).affectedKeys().hasOnly([
+                              'role', 'assignedSlots', 'allySpyUids', 'allySpyNames',
+                              'wiretapTargetUid', 'wiretapTargetName',
+                              'wiretapExpiresEpochMs', 'wiretapCycleStartedEpochMs',
+                              'wiretapMinute', 'rareCards', 'decoyTrapArmed', 'updatedAt'
+                            ]))
+                         );
+
+        allow delete: if isSignedIn() && isValidId(roomId) && isValidId(playerUid) &&
+                         request.auth.uid == existing().hostId;
+      }
+
+      // 4b. Shared Two-Spy Coordination State (Strictly Spy-Readable Only; Zero-Trust from Org)
+      match /spyNetwork/{docId} {
+        allow get: if isSignedIn() &&
+                      isValidId(roomId) &&
+                      docId == 'shared' &&
+                      request.auth.uid in existing().spyUids;
+
+        allow list: if false;
+
+        allow create: if isSignedIn() &&
+                         isValidId(roomId) &&
+                         docId == 'shared' &&
+                         incoming().roomId == roomId &&
+                         incoming().hostId == request.auth.uid &&
+                         incoming().keys().hasAll([
+                           'roomId', 'hostId', 'spyUids',
+                           'spy1Uid', 'spy1TargetUid', 'spy1TargetName', 'spy1ExpiresEpochMs',
+                           'spy2Uid', 'spy2TargetUid', 'spy2TargetName', 'spy2ExpiresEpochMs',
+                           'blackChannelOpenedAtEpochMs', 'blackChannelExpiresEpochMs',
+                           'blackChannelUsesCount', 'blackChannelClosed',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'roomId', 'hostId', 'spyUids',
+                           'spy1Uid', 'spy1TargetUid', 'spy1TargetName', 'spy1ExpiresEpochMs',
+                           'spy2Uid', 'spy2TargetUid', 'spy2TargetName', 'spy2ExpiresEpochMs',
+                           'blackChannelOpenedAtEpochMs', 'blackChannelExpiresEpochMs',
+                           'blackChannelUsesCount', 'blackChannelClosed',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidSpyNetwork(incoming()) &&
+                         exists(/databases/$(database)/documents/rooms/$(roomId)) &&
+                         get(/databases/$(database)/documents/rooms/$(roomId)).data.hostId == request.auth.uid;
+
+        allow update: if isSignedIn() &&
+                         isValidId(roomId) &&
+                         docId == 'shared' &&
+                         isValidSpyNetwork(incoming()) &&
+                         incoming().roomId == existing().roomId &&
+                         incoming().hostId == existing().hostId &&
+                         incoming().createdAt == existing().createdAt && (
+                           (request.auth.uid == existing().spy1Uid &&
+                            incoming().spyUids == existing().spyUids &&
+                            incoming().spy1Uid == existing().spy1Uid &&
+                            incoming().spy2Uid == existing().spy2Uid &&
+                            incoming().blackChannelUsesCount >= existing().blackChannelUsesCount &&
+                            (!existing().blackChannelClosed || (
+                              incoming().blackChannelClosed == true &&
+                              incoming().blackChannelUsesCount == existing().blackChannelUsesCount &&
+                              incoming().blackChannelOpenedAtEpochMs == existing().blackChannelOpenedAtEpochMs &&
+                              incoming().blackChannelExpiresEpochMs == existing().blackChannelExpiresEpochMs
+                            )) &&
+                            incoming().diff(existing()).affectedKeys().hasOnly([
+                              'spy1TargetUid', 'spy1TargetName', 'spy1ExpiresEpochMs',
+                              'blackChannelOpenedAtEpochMs', 'blackChannelExpiresEpochMs',
+                              'blackChannelUsesCount', 'blackChannelClosed', 'updatedAt'
+                            ])) ||
+                           (request.auth.uid == existing().spy2Uid &&
+                            incoming().spyUids == existing().spyUids &&
+                            incoming().spy1Uid == existing().spy1Uid &&
+                            incoming().spy2Uid == existing().spy2Uid &&
+                            incoming().blackChannelUsesCount >= existing().blackChannelUsesCount &&
+                            (!existing().blackChannelClosed || (
+                              incoming().blackChannelClosed == true &&
+                              incoming().blackChannelUsesCount == existing().blackChannelUsesCount &&
+                              incoming().blackChannelOpenedAtEpochMs == existing().blackChannelOpenedAtEpochMs &&
+                              incoming().blackChannelExpiresEpochMs == existing().blackChannelExpiresEpochMs
+                            )) &&
+                            incoming().diff(existing()).affectedKeys().hasOnly([
+                              'spy2TargetUid', 'spy2TargetName', 'spy2ExpiresEpochMs',
+                              'blackChannelOpenedAtEpochMs', 'blackChannelExpiresEpochMs',
+                              'blackChannelUsesCount', 'blackChannelClosed', 'updatedAt'
+                            ])) ||
+                           (request.auth.uid == existing().hostId &&
+                            incoming().diff(existing()).affectedKeys().hasOnly([
+                              'spyUids', 'spy1Uid', 'spy1TargetUid', 'spy1TargetName', 'spy1ExpiresEpochMs',
+                              'spy2Uid', 'spy2TargetUid', 'spy2TargetName', 'spy2ExpiresEpochMs',
+                              'blackChannelOpenedAtEpochMs', 'blackChannelExpiresEpochMs',
+                              'blackChannelUsesCount', 'blackChannelClosed', 'updatedAt'
+                            ]))
+                         );
+
+        allow delete: if isSignedIn() && isValidId(roomId) && docId == 'shared' &&
+                         request.auth.uid == existing().hostId;
+      }
+
+      // 5. Dual-Channel Room Messages
+      match /messages/{messageId} {
+        allow get, list: if isSignedIn() && request.auth.uid in existing().memberUids;
+
+        allow create: if isSignedIn() &&
+                         isValidId(roomId) &&
+                         isValidId(messageId) &&
+                         incoming().roomId == roomId &&
+                         request.auth.uid in incoming().memberUids &&
+                         incoming().keys().hasAll([
+                           'roomId', 'senderUid', 'senderDisplayName', 'spoofedByUid',
+                           'channel', 'targetUid', 'plainText', 'cipherText',
+                           'decoyTrap', 'decoyTriggered', 'createdAtEpochMs', 'memberUids', 'createdAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'roomId', 'senderUid', 'senderDisplayName', 'spoofedByUid',
+                           'channel', 'targetUid', 'plainText', 'cipherText',
+                           'decoyTrap', 'decoyTriggered', 'createdAtEpochMs', 'memberUids', 'createdAt'
+                         ]) &&
+                         isValidRoomMessage(incoming()) &&
+                         exists(/databases/$(database)/documents/rooms/$(roomId)) &&
+                         request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.memberUids;
+
+        allow update: if isSignedIn() &&
+                         isValidId(roomId) &&
+                         isValidId(messageId) &&
+                         request.auth.uid in existing().memberUids &&
+                         isValidRoomMessage(incoming()) &&
+                         incoming().roomId == existing().roomId &&
+                         incoming().senderUid == existing().senderUid &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['decoyTriggered']);
+
+        allow delete: if false;
+      }
+
+      // 6. Strictly Secret Battle Log — Hidden During Gameplay, Readable ONLY When FINISHED
+      match /battleLogs/{logId} {
+        allow get, list: if isSignedIn() &&
+                           request.auth.uid in existing().memberUids &&
+                           exists(/databases/$(database)/documents/rooms/$(roomId)) &&
+                           get(/databases/$(database)/documents/rooms/$(roomId)).data.status == 'FINISHED';
+
+        allow create: if isSignedIn() &&
+                         isValidId(roomId) &&
+                         isValidId(logId) &&
+                         incoming().roomId == roomId &&
+                         request.auth.uid in incoming().memberUids &&
+                         incoming().keys().hasAll([
+                           'roomId', 'roundNumber', 'actorUid', 'actorName',
+                           'eventType', 'summaryAr', 'createdAtEpochMs', 'memberUids', 'createdAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'roomId', 'roundNumber', 'actorUid', 'actorName',
+                           'eventType', 'summaryAr', 'createdAtEpochMs', 'memberUids', 'createdAt'
+                         ]) &&
+                         isValidBattleLog(incoming()) &&
+                         exists(/databases/$(database)/documents/rooms/$(roomId)) &&
+                         request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.memberUids &&
+                         get(/databases/$(database)/documents/rooms/$(roomId)).data.status != 'FINISHED';
+
+        allow update, delete: if false;
+      }
+    }
+  }
+}
